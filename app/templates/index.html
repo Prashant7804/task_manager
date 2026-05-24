@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="dashboard">
+
+  <!-- Add Task Form -->
+
+  <div class="card">
+    <h3>Add New Task</h3>
+    <div class="task-form">
+      <input type="text" id="task-title" placeholder="Task title *" required>
+      <textarea id="task-desc" placeholder="Description (optional)" rows="2"></textarea>
+      <div class="form-row">
+        <select id="task-priority">
+          <option value="low">Low Priority</option>
+          <option value="medium" selected>Medium Priority</option>
+          <option value="high">High Priority</option>
+        </select>
+        <select id="task-status">
+          <option value="pending" selected>Pending</option>
+          <option value="completed">Completed</option>
+        </select>
+        <button onclick="addTask()">+ Add Task</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Task List -->
+  <div class="card">
+    <h3>My Tasks <span id="task-count" class="badge">0</span></h3>
+    <div class="filter-row">
+      <button class="filter-btn active" onclick="filterTasks('all', this)">All</button>
+      <button class="filter-btn" onclick="filterTasks('pending', this)">Pending</button>
+      <button class="filter-btn" onclick="filterTasks('completed', this)">Completed</button>
+    </div>
+    <div id="task-list"></div>
+  </div>
+
+</div>
+
+<!-- Edit Modal -->
+<div id="edit-modal" class="modal hidden">
+  <div class="modal-box">
+    <h3>Edit Task</h3>
+    <input type="hidden" id="edit-id">
+    <input type="text" id="edit-title" placeholder="Title">
+    <textarea id="edit-desc" rows="2" placeholder="Description"></textarea>
+    <div class="form-row">
+      <select id="edit-priority">
+        <option value="low">Low</option>
+        <option value="medium">Medium</option>
+        <option value="high">High</option>
+      </select>
+      <select id="edit-status">
+        <option value="pending">Pending</option>
+        <option value="completed">Completed</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button onclick="saveEdit()">Save</button>
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let allTasks = [];
+
+async function loadTasks() {
+  const res = await fetch('/api/tasks');
+  allTasks  = await res.json();
+  renderTasks(allTasks);
+}
+
+function renderTasks(tasks) {
+  const list = document.getElementById('task-list');
+  document.getElementById('task-count').textContent = tasks.length;
+  if (tasks.length === 0) {
+    list.innerHTML = '<p class="empty">No tasks found.</p>';
+    return;
+  }
+  list.innerHTML = tasks.map(t => `
+    <div class="task-item ${t.status}">
+      <div class="task-info">
+        <span class="task-title">${t.title}</span>
+        <span class="task-desc">${t.description || ''}</span>
+        <div class="task-meta">
+          <span class="badge priority-${t.priority}">${t.priority}</span>
+          <span class="badge status-${t.status}">${t.status}</span>
+          <span class="date">${t.created_date}</span>
+        </div>
+      </div>
+      <div class="task-actions">
+        <button class="btn-toggle ${t.status === 'completed' ? 'btn-undo' : 'btn-done'}"
+          onclick="toggleStatus(${t.id}, '${t.status}')">
+          ${t.status === 'completed' ? '↩ Undo' : '✓ Done'}
+        </button>
+        <button class="btn-edit" onclick="openEdit(${t.id}, '${escape(t.title)}', '${escape(t.description||'')}', '${t.priority}', '${t.status}')">Edit</button>
+        <button class="btn-delete" onclick="deleteTask(${t.id})">Delete</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function filterTasks(status, btn) {
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderTasks(status === 'all' ? allTasks : allTasks.filter(t => t.status === status));
+}
+
+async function toggleStatus(id, currentStatus) {
+  const newStatus = currentStatus === 'pending' ? 'completed' : 'pending';
+  await fetch(`/api/tasks/${id}`, {
+    method: 'PUT',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ status: newStatus })
+  });
+  loadTasks();
+}
+
+async function addTask() {
+  const title = document.getElementById('task-title').value.trim();
+  if (!title) { alert('Title is required'); return; }
+  await fetch('/api/tasks', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      title:       title,
+      description: document.getElementById('task-desc').value,
+      priority:    document.getElementById('task-priority').value,
+      status:      document.getElementById('task-status').value
+    })
+  });
+  document.getElementById('task-title').value = '';
+  document.getElementById('task-desc').value  = '';
+  loadTasks();
+}
+
+async function deleteTask(id) {
+  if (!confirm('Delete this task?')) return;
+  await fetch(`/api/tasks/${id}`, { method: 'DELETE' });
+  loadTasks();
+}
+
+function openEdit(id, title, desc, priority, status) {
+  document.getElementById('edit-id').value       = id;
+  document.getElementById('edit-title').value    = unescape(title);
+  document.getElementById('edit-desc').value     = unescape(desc);
+  document.getElementById('edit-priority').value = priority;
+  document.getElementById('edit-status').value   = status;
+  document.getElementById('edit-modal').classList.remove('hidden');
+}
+
+function closeModal() {
+  document.getElementById('edit-modal').classList.add('hidden');
+}
+
+async function saveEdit() {
+  const id = document.getElementById('edit-id').value;
+  await fetch(`/api/tasks/${id}`, {
+    method: 'PUT',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      title:       document.getElementById('edit-title').value,
+      description: document.getElementById('edit-desc').value,
+      priority:    document.getElementById('edit-priority').value,
+      status:      document.getElementById('edit-status').value
+    })
+  });
+  closeModal();
+  loadTasks();
+}
+
+loadTasks();
+</script>
+{% endblock %}

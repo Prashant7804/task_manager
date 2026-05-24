@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="dashboard">
+  <div class="card">
+    <h3>Task Analytics</h3>
+    <div class="stats-grid" id="stats-grid">
+      <div class="stat-box">
+        <span class="stat-num" id="stat-total">—</span>
+        <span class="stat-label">Total Tasks</span>
+      </div>
+      <div class="stat-box green">
+        <span class="stat-num" id="stat-completed">—</span>
+        <span class="stat-label">Completed</span>
+      </div>
+      <div class="stat-box blue">
+        <span class="stat-num" id="stat-pending">—</span>
+        <span class="stat-label">Pending</span>
+      </div>
+      <div class="stat-box gold">
+        <span class="stat-num" id="stat-rate">—</span>
+        <span class="stat-label">Completion Rate</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Tasks by Priority</h3>
+    <div id="priority-bars"></div>
+  </div>
+
+  <div class="card">
+    <h3>Completion Progress</h3>
+    <div class="progress-wrap">
+      <div class="progress-bar-bg">
+        <div class="progress-bar-fill" id="progress-fill" style="width: 0%"></div>
+      </div>
+      <span id="progress-label">0%</span>
+    </div>
+  </div>
+</div>
+
+
+
+<script>
+async function loadAnalytics() {
+  const res  = await fetch('/api/analytics');
+  const data = await res.json();
+
+  document.getElementById('stat-total').textContent     = data.total;
+  document.getElementById('stat-completed').textContent = data.completed;
+  document.getElementById('stat-pending').textContent   = data.pending;
+  document.getElementById('stat-rate').textContent      = data.completion_rate + '%';
+
+  const fill  = document.getElementById('progress-fill');
+  const label = document.getElementById('progress-label');
+  fill.style.width = data.completion_rate + '%';
+  label.textContent = data.completion_rate + '%';
+
+  const colors   = { low: '#27ae60', medium: '#f39c12', high: '#e74c3c' };
+  const barsDiv  = document.getElementById('priority-bars');
+  const maxCount = Math.max(...Object.values(data.by_priority), 1);
+
+  barsDiv.innerHTML = ['high', 'medium', 'low'].map(p => `
+    <div class="bar-row">
+      <span class="bar-label">${p.charAt(0).toUpperCase() + p.slice(1)}</span>
+      <div class="bar-track">
+        <div class="bar-fill" style="width: ${(data.by_priority[p] / maxCount) * 100}%; background: ${colors[p]}"></div>
+      </div>
+      <span class="bar-count">${data.by_priority[p]}</span>
+    </div>
+  `).join('');
+}
+
+
+loadAnalytics();
+</script>
+{% endblock %}

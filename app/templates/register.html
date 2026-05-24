@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="auth-card">
+  <h2>Create Account</h2>
+  <form method="POST">
+    <input type="text"  name="username" placeholder="Username" required>
+    <input type="email" name="email"    placeholder="Email"    required>
+    <div class="password-wrap">
+      <input type="password" name="password" id="reg-pw" placeholder="Password" required>
+      <span class="eye-toggle" onclick="togglePw('reg-pw', this)">👁</span>
+    </div>
+    <button type="submit">Register</button>
+  </form>
+  <p>Already have an account? <a href="{{ url_for('main.login') }}">Login</a></p>
+</div>
+{% endblock %}
